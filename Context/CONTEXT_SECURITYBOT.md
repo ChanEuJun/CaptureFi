@@ -1,77 +1,57 @@
-Security Bot Logic (The "HyperGuard")
+Salt AI Policy (The "Trustless Delegate")
 
 Overview
+In CaptureFi, the "Security Bot" concept evolves into a "Restricted Delegate". We are granting an AI Agent (or the CaptureFi Backend) the permission to execute trades on the user's behalf.
+To make this safe, we use Salt's Policy layer to strictly bound the AI's power.
 
-This logic satisfies the Salt Track requirement for "Programmable Capital." It acts as a pre-flight check before any capital is deployed into a strategy.
+The Policy Specification
 
-The Logic Flow
+Target: The User's Salt Smart Account.
+Delegate: The CaptureFi Server/Agent Key (`0xAgent...`).
 
-Before the Salt Account signs the transaction to enter Pear Protocol, it runs this asynchronous check.
+Rules:
+1. Whitelist Contract Interaction
+   - The Delegate can ONLY CALL the `PearRouter` contract address.
+   - Any attempt to call `USDC.transfer` or `ETH.transfer` will revert.
 
-1. The CVE Database (Mocked)
+2. Whitelist Function Selectors
+   - The Delegate can ONLY call specific function signatures:
+     - `openPosition(...)`
+     - `addCollateral(...)`
+     - `closePosition(...)`
 
-For the hackathon, we hardcode a list of "Known Bad Actors" or simulated vulnerabilities to demonstrate the functionality.
+3. Spending Limits (Optional/Advanced)
+   - "Max Drawdown": If the position loses > 20%, the AI is forced to close (Stop Loss).
+   - "Max Daily Volume": The AI can only trade up to $1000/day.
 
-{
-  "BLACKLIST": [
-    "0x000000000000000000000000000000000000dead", // Null
-    "0xScamTokenAddress...", 
-    "0xHackedBridgeOld..."
-  ],
-  "PAUSED_PROTOCOLS": [
-    // If Pear Protocol announces a pause, we add it here manually during the demo
-  ]
+Mock Implementation for Hackathon (Frontend Guard)
+
+Since a full Salt integration might be complex for a hackathon, we can simulate the policy check in the client-side signing flow:
+
+```typescript
+// services/SaltPolicyCheck.ts
+
+const ALLOWED_CONTRACTS = ['0xPearRouterAddress...'];
+const ALLOWED_METHODS = ['openPosition', 'closePosition'];
+
+export function validateTransaction(tx, signerRole) {
+  if (signerRole === 'AI_AGENT') {
+    if (!ALLOWED_CONTRACTS.includes(tx.to)) {
+      throw new Error("POLICY VIOLATION: AI Agent cannot interact with this contract.");
+    }
+    
+    // Decode data to check method
+    const method = decodeMethod(tx.data);
+    if (!ALLOWED_METHODS.includes(method)) {
+      throw new Error("POLICY VIOLATION: AI Agent cannot call this function.");
+    }
+  }
+  return true; // Pass
 }
+```
 
-
-2. The Verification Function
-
-This function simulates an AI Agent reviewing the transaction.
-
-/**
- * The "Robo-Manager" Brain
- * @param {string} targetContract - The protocol we are about to invest in
- * @param {number} amount - The amount of capital
- */
-export async function runSecurityAudit(targetContract, amount) {
-  console.log(`[HyperGuard] Auditing interaction with ${targetContract}...`);
-  
-  // 1. Check Blacklist
-  if (BLACKLIST.includes(targetContract)) {
-    throw new Error("SECURITY ALERT: Target contract is on the Global Blacklist.");
-  }
-  
-  // 2. Check Protocol Health (Simulation)
-  // In production, this hits an API like GoPlus or Hyperliquid Analytics
-  const isHealthy = Math.random() > 0.05; // 5% chance of simulated failure for demo
-  
-  if (!isHealthy) {
-    throw new Error("RISK ALERT: Protocol volume has dropped 99% in 1 hour. Possible exploit.");
-  }
-  
-  // 3. Check "Slippage/Price Impact"
-  // Ensure we aren't getting front-run
-  const priceImpact = await getEstimatedPriceImpact(amount);
-  if (priceImpact > 2.0) {
-     throw new Error("FINANCIAL GUARD: Price impact too high (>2%). Trade blocked.");
-  }
-  
-  return {
-    status: "APPROVED",
-    timestamp: Date.now(),
-    auditHash: "0xABC123..."
-  };
-}
-
-
-3. UI Representation
-
-The UI should display this process visually to impress judges:
-
-State 1: "Analyzing Target Contract..." (Spinner)
-
-State 2: "Checking for CVEs..." (Green Checkmark)
-
-State 3: "Verifying Liquidity Depth..." (Green Checkmark)
-
-State 4: "Policy Approved. Executing." (Action)
+Visualizing Trust
+The UI should clearly show this restriction:
+- "Delegate Status: Active"
+- "Permissions: Pear Protocol ONLY"
+- "Withdrawal Access: REVOKED" (Green Shield Icon)

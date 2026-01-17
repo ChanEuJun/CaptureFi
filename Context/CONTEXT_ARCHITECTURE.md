@@ -1,86 +1,75 @@
-Technical Architecture & Data Flow
+Technical Architecture & Data Flow - CaptureFi
 
 System Diagram
 
 graph TD
-    User[User (EOA on Optimism)] -->|1. Sign Bridge Tx| LiFi[LI.FI Widget/SDK]
-    LiFi -->|2. Bridge USDC + Swap for Gas| SaltAccount[Salt Smart Account (HyperEVM)]
+    UserInput["User Input (Tweet/URL/Text)"] -->|1. Submit| NLP[AI Analysis Engine]
+    NLP -->|2. Extract Sentiment & Tickers| TradeGen[Trade Generator]
+    TradeGen -->|3. Propose Pair Trade| UI[Approval Interface]
     
-    subgraph "HyperEVM (Destination)"
-        SaltAccount -->|3. Trigger Policy Check| SecurityBot[Security Logic / Policy]
-        SecurityBot -- "Safe" --> Pear[Pear Protocol Contract]
-        SecurityBot -- "Unsafe" --> Vault[Holding Vault]
+    UI -->|4. User Approves| CheckLiquidity{Check Liquidity}
+    
+    CheckLiquidity -- "Insufficient" --> LiFi[LI.FI Widget]
+    LiFi -->|5. Bridge Funds| SaltAccount
+    
+    CheckLiquidity -- "Sufficient" --> SaltAccount[Salt Smart Account]
+    
+    subgraph "Trust Layer (Salt)"
+        SaltAccount -->|6. Verify Policy| PolicyEngine[Policy Check]
+        PolicyEngine -- "OK (Whitelisted)" --> PearRouter
+        PolicyEngine -- "Blocked" --> Revert
     end
     
-    Pear -->|4. Open Long/Short| Hyperliquid[Hyperliquid L1 Orderbook]
-
+    PearRouter -->|7. Execute Trade| Hyperliquid
 
 Component Breakdown
 
-1. The "Inbound" Bridge (Li.Fi)
+1. The "Capture" Layer (Frontend/Extension)
+- Role: Ingest content.
+- Tech: Simple Text Area or Browser Extension (Context Menu).
+- Action: Sends text to Backend.
 
-Role: Transport layer.
+2. The "Process" Layer (AI Backend)
+- Role: Intelligence.
+- Tech: OpenAI API / Anthropic Claude.
+- Task: Receive text -> Output JSON Strategy.
+  - Text: "ETH is looking weak compared to the new L2s."
+  - JSON: `{ long: "OP", short: "ETH", confidence: 0.85 }`
 
-Configuration:
+3. The "Protect" Layer (Salt)
+- Role: Custody & Permission.
+- The User owns the Salt Account.
+- The "CaptureFi Agent" is a DELEGATE on the account.
+- The POLICY restricts the Agent to only call `PearRouter`.
 
-Source: Any EVM chain (Optimism, Base, Arbitrum).
-
-Destination: HyperEVM (Chain ID 999).
-
-Token: USDC.
-
-Recipient (toAddress): This is CRITICAL. The recipient must be the address of the User's Salt Smart Account, NOT their EOA.
-
-Gas Handling: Use Li.Fi's "Gas Destination" feature to swap a small portion of source USDC into HYPE token so the Salt Account has gas to execute the trade upon arrival.
-
-2. The "Robo-Manager" (Salt)
-
-Role: The Custodian & Policymaker.
-
-Logic:
-
-This is a Smart Contract Account (SCA) owned by the user but restricted by code.
-
-Policy Rule #1: Can only interact with whitelisted addresses (Pear Protocol Router).
-
-Policy Rule #2: Can only execute if the SecurityOracle returns true.
-
-3. The Execution Layer (Pear)
-
-Role: Yield generation.
-
-Action: openPosition.
-
-Parameters (Hardcoded for MVP):
-
-pair: ETH/BTC (or similar strong correlation pair).
-
-leverage: 2x (Conservative).
-
-direction: Long ETH / Short BTC.
+4. The "Fund" Layer (LI.FI)
+- Role: Gap filling.
+- Checks `USDC.balanceOf(SaltAccount)`.
+- If `balance < TradeAmount`, invoke LI.FI SDK to bridge difference.
 
 Data Models
 
-User State
-
-interface UserState {
-  address: string; // EOA
-  saltAccountAddress: string; // The calculated Smart Account address
-  currentChain: number;
-  balance: {
-    source: BigNumber; // USDC on Optimism
-    destination: BigNumber; // USDC on HyperEVM
+Narrative Object
+```typescript
+interface Narrative {
+  sourceUrl: string;
+  originalText: string;
+  detectedSentiment: "Bullish" | "Bearish" | "Neutral";
+  recommendedPair: {
+    longToken: string;
+    shortToken: string;
+    leverage: number;
   };
+  reasoning: string; // "L2s showing strength..."
 }
+```
 
-
-Strategy State
-
-interface Strategy {
-  id: "delta-neutral-eth";
-  name: "Delta Guard ETH";
-  apy: number; // e.g., 15.2%
-  riskLevel: "Low" | "Medium" | "High";
-  pearContractAddress: string;
-  isPaused: boolean; // Driven by Security Bot
+Trade Request
+```typescript
+interface TradeRequest {
+  tool: "Pear";
+  pair: "OP-ETH";
+  direction: "LONG"; // Long the pair (Long OP, Short ETH)
+  collateral: number;
 }
+```
