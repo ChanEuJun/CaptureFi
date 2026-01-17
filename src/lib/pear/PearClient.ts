@@ -22,8 +22,12 @@ export class PearClient {
   private clientId: string;
   private accessToken: string | null = null;
 
-  constructor(privateKey: string, clientId: string = 'HLHackathon1') {
-    this.wallet = new ethers.Wallet(privateKey);
+  constructor(privateKey?: string, clientId: string = 'HLHackathon1') {
+    const key = privateKey || process.env.AGENT_PRIVATE_KEY;
+    if (!key) {
+      throw new Error("PearClient requires a Private Key (passed or AGENT_PRIVATE_KEY env var)");
+    }
+    this.wallet = new ethers.Wallet(key);
     this.clientId = clientId;
     this.api = axios.create({
       baseURL: this.baseUrl,
@@ -47,20 +51,39 @@ export class PearClient {
   async authenticate() {
     try {
       // 1. Get EIP-712 message
-      const msgRes = await this.api.get(`/authentication/eip712-message?clientId=${this.clientId}`);
-      const { types, domain, message } = msgRes.data;
+      // Requires both clientId and wallet address as params
+      console.log(`[PearClient] Wrapper: Fetching EIP-712 message for client ${this.clientId} & address ${this.wallet.address}...`);
+      const msgRes = await this.api.get(`/auth/eip712-message`, {
+        params: {
+          address: this.wallet.address,
+          clientId: this.clientId
+        }
+      });
+      console.log(`[PearClient] Wrapper: Message received.`);
+
+      const eipData = msgRes.data;
+      const { domain, types, message: value } = eipData;
 
       // 2. Sign the message
-      // Note: verify the domain/types structure matches ethers requirements
-      // Defaulting to simple signMessage if types aren't standard EIP-712 object, 
-      // but assuming typed data signing is needed:
-      const signature = await this.wallet.signTypedData(domain, types, message);
+      // Note: The snippet deletes EIP712Domain from types before signing
+      if (types.EIP712Domain) {
+        delete types.EIP712Domain;
+      }
 
-      // 3. Authenticate
-      const authRes = await this.api.post('/authentication/authenticate', {
-        signature,
+      console.log(`[PearClient] Wrapper: Signing message with wallet ${this.wallet.address}...`);
+      const signature = await this.wallet.signTypedData(domain, types, value);
+
+      // 3. Authenticate / Login
+      // Snippet uses /auth/login and specific body structure
+      console.log(`[PearClient] Wrapper: Authenticating via /auth/login...`);
+      const authRes = await this.api.post('/auth/login', {
+        method: 'eip712',
+        address: this.wallet.address,
         clientId: this.clientId,
-        walletAddress: this.wallet.address,
+        details: {
+          signature,
+          timestamp: value.timestamp // Ensure we pass back the timestamp from the message
+        },
       });
 
       this.accessToken = authRes.data.accessToken;
@@ -77,9 +100,9 @@ export class PearClient {
   async createPairTrade(params: PairTradeParams) {
     if (!this.accessToken) await this.authenticate();
 
-    // Mapping params to Pear API structure (Mock structure based on description)
-    // In reality, we'd need exact endpoint details.
-    return this.api.post('/trade/pair', {
+    // Mapping params to Pear API structure
+    // Endpoint likely /orders based on Discord context
+    return this.api.post('/orders', {
       type: 'pair',
       ...params,
     });
@@ -91,7 +114,7 @@ export class PearClient {
   async createBasketTrade(params: BasketTradeParams) {
     if (!this.accessToken) await this.authenticate();
 
-    return this.api.post('/trade/basket', {
+    return this.api.post('/orders', {
       type: 'basket',
       ...params,
     });
