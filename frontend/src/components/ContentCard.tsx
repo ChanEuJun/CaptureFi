@@ -1,7 +1,13 @@
 import { motion } from "framer-motion";
-import { Twitter, Youtube, FileText, Clock, MoreHorizontal, Bookmark, TrendingUp } from "lucide-react";
+import { Twitter, Youtube, FileText, Clock, MoreHorizontal, Bookmark, TrendingUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export interface ContentItem {
   id: string;
@@ -18,7 +24,6 @@ export interface ContentItem {
   full_content?: string;
   narrative?: {
     summary: string;
-    highlights?: string[];
     tradePair?: {
       long: string;
       short: string;
@@ -28,11 +33,11 @@ export interface ContentItem {
 
 
 
-
 interface ContentCardProps {
   item: ContentItem;
   isSelected: boolean;
   onClick: () => void;
+  onDelete?: (id: string) => void;
 }
 
 const sourceIcons = {
@@ -47,7 +52,7 @@ const sourceColors = {
   article: "text-muted-foreground",
 };
 
-export function ContentCard({ item, isSelected, onClick }: ContentCardProps) {
+export function ContentCard({ item, isSelected, onClick, onDelete }: ContentCardProps) {
   const SourceIcon = sourceIcons[item.type];
 
   return (
@@ -130,12 +135,29 @@ export function ContentCard({ item, isSelected, onClick }: ContentCardProps) {
 
         {/* Actions */}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
             <Bookmark className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover border-border">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive cursor-pointer flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.(item.id);
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>delete</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </motion.article>

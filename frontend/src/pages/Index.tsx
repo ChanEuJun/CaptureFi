@@ -25,22 +25,40 @@ const Index = () => {
 
   const selectedItem = content.find((item) => item.id === selectedId) || null;
 
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/content/${id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setContent((prev) => prev.filter((item) => item.id !== id));
+        if (selectedId === id) {
+          setSelectedId(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete content:", err);
+    }
+  };
+
   if (loading) {
     return <div className="flex h-screen bg-background items-center justify-center text-foreground">loading content...</div>;
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden" id="main-content">
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
       <ContentFeed
         items={content}
         selectedId={selectedId}
         onSelect={setSelectedId}
+        onDelete={handleDelete}
         activeView={activeView}
       />
       <DetailPanel item={selectedItem} onClose={() => setSelectedId(null)} />
     </div>
   );
+
 };
 
 export default Index;

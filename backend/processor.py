@@ -17,64 +17,136 @@ def extract_twitter_thread(url):
     
     thread_id = match.group(1)
     
-    # Try multiple unroll services
-    services = [
-        f"https://unrollnow.com/status/{thread_id}",
-        f"https://threadreaderapp.com/thread/{thread_id}.html",
-        f"https://twitter-thread.com/t/{thread_id}"
-    ]
+    # Use twitter-thread.com service
+    thread_url = f"https://twitter-thread.com/t/{thread_id}"
     
-    for thread_url in services:
-        try:
-            response = requests.get(thread_url, headers=HEADERS, timeout=15)
-            if response.status_code != 200:
-                continue
-                
+    try:
+        response = requests.get(thread_url, headers=HEADERS, timeout=15)
+        if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            tweets = []
             
-            # Use specific selectors based on service
-            if 'unrollnow.com' in thread_url:
-                tweet_elements = soup.find_all(['div', 'p'], class_=re.compile(r'tweet-text', re.I))
-                tweets = [t.get_text(strip=True) for t in tweet_elements]
-            elif 'threadreaderapp.com' in thread_url:
-                tweet_elements = soup.find_all('div', class_='text')
-                tweets = [t.get_text(strip=True) for t in tweet_elements]
-            elif 'twitter-thread.com' in thread_url:
-                tweet_elements = soup.select('div.whitespace-pre-wrap')
-                tweets = [t.get_text(strip=True) for t in tweet_elements]
-
-            # Broad fallback if specific selectors failed
-            if not tweets:
-                # Look for repeating content blocks that look like tweets
-                tweet_elements = soup.find_all(['div', 'p'], class_=re.compile(r'(content|thread|text)', re.I))
-                tweets = [t.get_text(strip=True) for t in tweet_elements if len(t.get_text()) > 40]
-
-            # CLEANING: Remove navigation, footer, and common UI text
-            noise = [
-                "unroll thread", "login", "sign up", "terms of service", "privacy policy",
-                "back to home", "thread not found", "more threads by", "follow us",
-                "published 0 seconds ago", "tweet analytics", "print thread", "save as pdf"
-            ]
+            # Extract author from: <div dir="auto" class="line-clamp-1 text-base text-gray dark:text-gray-light">@glassnode</div>
+            author_div = soup.find('div', class_=lambda x: x and 'line-clamp-1' in x and 'text-base' in x and 'text-gray' in x)
+            author = author_div.get_text(strip=True) if author_div else 'Unknown'
+            # Remove @ symbol if present
+            if author.startswith('@'):
+                author = author[1:]
             
-            cleaned_tweets = []
-            for t in tweets:
-                t_lower = t.lower()
-                if any(n in t_lower for n in noise):
-                    continue
-                if len(t) < 15:
-                    continue
-                cleaned_tweets.append(t)
+            # Extract text from: <div dir="auto" class="whitespace-pre-wrap text-lg">...</div>
+            # Get only the FIRST/main tweet (not replies)
+            text_div = soup.find('div', class_=lambda x: x and 'whitespace-pre-wrap' in x and 'text-lg' in x)
+            
+            if text_div:
+                # Extract images from within the text div
+                images = []
+                img_tags = text_div.find_all('img')
+                for img in img_tags:
+                    src = img.get('src', '')
+                    alt = img.get('alt', '')
+                    if src and not src.startswith('data:'):
+                        images.append({'src': src, 'alt': alt})
+                    # Replace img tag with its alt text (for emojis)
+                    if alt:
+                        img.replace_with(alt)
+                
+                # Extract links from within the text div
+                links = []
+                link_tags = text_div.find_all('a', class_=lambda x: x and 'text-primary' in x if x else False)
+                for link in link_tags:
+                    href = link.get('href', '')
+                    link_text = link.get_text(strip=True)
+                    if href:
+                        links.append({'url': href, 'text': link_text})
+                    # Replace link with its text content
+                    link.replace_with(link_text)
+                
+                # Now get the cleaned text
+                cleaned_text = text_div.get_text(separator=' ', strip=True)
+                
+                if cleaned_text:
+                    return {
+                        "type": "twitter",
+                        "content": cleaned_text,
+                        "author": author,
+                        "extra_info": {
+                            "thread_id": thread_id,
+                            "service_used": thread_url,
+                            "images": images,
+                            "links": links
+                        },
+                        "title": f"Twitter Post by @{author}"
+                    }
+    except Exception as e:
+        # Don't print errors to stdout, they'll be in the JSON response
+        pass
 
-            if cleaned_tweets:
-                return {
-                    "type": "twitter",
-                    "content": "\n\n".join(cleaned_tweets),
-                    "extra_info": {"thread_id": thread_id, "service_used": thread_url},
-                    "title": f"Twitter Thread {thread_id}"
-                }
-        except Exception:
-            continue
+    # Try direct DOM extraction from Twitter page
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Look for specific tweet content elements
+            # Match p elements with all three classes: article-paragraph, tweet-content, clickable-tweet
+            def has_tweet_classes(class_list):
+                if not class_list:
+                    return False
+                if isinstance(class_list, str):
+                    class_list = [class_list]
+                return 'article-paragraph' in class_list and 'tweet-content' in class_list and 'clickable-tweet' in class_list
+            
+            def has_tweetimg_class(class_list):
+                if not class_list:
+                    return False
+                if isinstance(class_list, str):
+                    class_list = [class_list]
+                return 'tweetimg' in class_list
+            
+            # Find the MAIN tweet only (data-tweet-index="1")
+            main_tweet = soup.find('p', class_=has_tweet_classes, attrs={'data-tweet-index': '1'})
+            
+            if not main_tweet:
+                # Fallback: get the first tweet paragraph if no data-tweet-index found
+                tweet_paragraphs = soup.find_all('p', class_=has_tweet_classes)
+                if tweet_paragraphs:
+                    main_tweet = tweet_paragraphs[0]
+            
+            if main_tweet:
+                # Get text from main tweet only
+                text = main_tweet.get_text(strip=True)
+                
+                # Find images within the same article/tweet container
+                images = []
+                tweet_container = main_tweet.find_parent('article') or main_tweet.parent
+                
+                if tweet_container:
+                    tweet_images = tweet_container.find_all('img', class_=has_tweetimg_class)
+                else:
+                    # Fallback: search for images near the main tweet
+                    tweet_images = soup.find_all('img', class_=has_tweetimg_class)
+                
+                for img in tweet_images:
+                    src = img.get('src', '')
+                    alt = img.get('alt', '')
+                    # Exclude data URIs and ensure it's a valid image URL
+                    if src and not src.startswith('data:') and ('http' in src or src.startswith('//')):
+                        images.append({'src': src, 'alt': alt})
+                
+                # Build content with text and image references
+                content_parts = [text] if text else []
+                for img in images:
+                    content_parts.append(f"[Image: {img['alt'] or 'Tweet image'} - {img['src']}]")
+                
+                if content_parts:
+                    full_content = '\n\n'.join(content_parts)
+                    return {
+                        "type": "twitter",
+                        "content": full_content,
+                        "extra_info": {"thread_id": thread_id, "method": "dom_extraction", "images": images},
+                        "title": f"Twitter Post {thread_id}"
+                    }
+    except Exception:
+        pass
 
     # Final Meta Tag Fallback
     try:
@@ -105,22 +177,31 @@ def extract_twitter_thread(url):
 
 
 def extract_youtube_transcript(url):
+    # Extract video ID from URL (NOT the full URL, just the ID)
+    # For https://www.youtube.com/watch?v=12345, the ID is 12345
     video_id = None
     if 'youtu.be/' in url:
         video_id = url.split('/')[-1].split('?')[0]
     elif 'v=' in url:
         video_id = url.split('v=')[1].split('&')[0]
-        
+    
     if not video_id:
-        return {"error": "Could not extract Video ID"}
-        
+        return {"error": "Could not extract Video ID from URL"}
+    
     try:
-        # User preferred API call style
+        # Use YouTube Transcript API ONLY - no scraping, no HTTP requests to YouTube pages
         ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.fetch(video_id)
+        fetched_transcript = ytt_api.fetch(video_id)
         
-        full_text = " ".join([item.text for item in transcript_list])
-
+        # Extract text from FetchedTranscript snippets
+        text_items = []
+        for snippet in fetched_transcript.snippets:
+            text_items.append(snippet.text)
+        
+        full_text = " ".join(text_items)
+        
+        if not full_text or len(full_text.strip()) == 0:
+            return {"error": "YouTube transcript is empty"}
         
         return {
             "type": "youtube",
@@ -129,7 +210,7 @@ def extract_youtube_transcript(url):
             "title": f"YouTube Video {video_id}"
         }
     except Exception as e:
-        return {"error": f"YouTube extraction failed: {str(e)}"}
+        return {"error": f"YouTube transcript extraction failed: {str(e)}"}
 
 
 def extract_general_article(url):
@@ -188,5 +269,12 @@ if __name__ == "__main__":
         sys.exit(1)
         
     url = sys.argv[1]
-    result = process_url(url)
-    print(json.dumps(result))
+    try:
+        result = process_url(url)
+        # Ensure we only output JSON to stdout
+        print(json.dumps(result))
+    except Exception as e:
+        # Catch any unexpected errors and return as JSON
+        error_result = {"error": f"Unexpected error: {str(e)}"}
+        print(json.dumps(error_result))
+        sys.exit(1)

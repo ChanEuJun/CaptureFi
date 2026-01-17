@@ -22,6 +22,89 @@ async function getCurrentTabUrl() {
     }
 }
 
+// Extract YouTube video ID from URL
+function extractYouTubeVideoId(url) {
+    if (!url) return null;
+    
+    // Handle youtu.be/ format
+    if (url.includes('youtu.be/')) {
+        return url.split('youtu.be/')[1].split('?')[0].split('&')[0];
+    }
+    
+    // Handle youtube.com/watch?v= format
+    if (url.includes('youtube.com/watch') && url.includes('v=')) {
+        return url.split('v=')[1].split('&')[0];
+    }
+    
+    return null;
+}
+
+// Extract content from Twitter/X page DOM
+async function extractTwitterContent() {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        // Execute script in the page context to access DOM
+        const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+                const content = {
+                    text: '',
+                    images: []
+                };
+                
+                // Extract text from the MAIN tweet only (data-tweet-index="1")
+                const mainTweet = document.querySelector('p.article-paragraph.tweet-content.clickable-tweet[data-tweet-index="1"]');
+                
+                if (mainTweet) {
+                    // Get the text content, preserving line breaks
+                    const text = mainTweet.innerText || mainTweet.textContent || '';
+                    content.text = text.trim();
+                    
+                    // Find the tweet container to scope image search
+                    let tweetContainer = mainTweet.closest('article') || mainTweet.parentElement;
+                    
+                    // Extract images from within the same tweet container
+                    if (tweetContainer) {
+                        const tweetImages = tweetContainer.querySelectorAll('img.tweetimg');
+                        tweetImages.forEach(img => {
+                            const src = img.getAttribute('src');
+                            const alt = img.getAttribute('alt') || '';
+                            if (src && !src.includes('data:image')) { // Exclude data URIs
+                                content.images.push({ src, alt });
+                            }
+                        });
+                    } else {
+                        // Fallback: search for images near the main tweet
+                        const tweetImages = document.querySelectorAll('img.tweetimg');
+                        tweetImages.forEach(img => {
+                            const src = img.getAttribute('src');
+                            const alt = img.getAttribute('alt') || '';
+                            if (src && !src.includes('data:image')) {
+                                content.images.push({ src, alt });
+                            }
+                        });
+                    }
+                } else {
+                    // Fallback: try to find the first/main tweet paragraph
+                    const firstTweet = document.querySelector('p.article-paragraph.tweet-content.clickable-tweet');
+                    if (firstTweet) {
+                        const text = firstTweet.innerText || firstTweet.textContent || '';
+                        content.text = text.trim();
+                    }
+                }
+                
+                return content;
+            }
+        });
+        
+        return results[0]?.result || { text: '', images: [] };
+    } catch (error) {
+        console.error('Error extracting Twitter content:', error);
+        return { text: '', images: [] };
+    }
+}
+
 // Display URL
 async function displayUrl() {
     try {
@@ -46,6 +129,35 @@ async function saveUrl() {
     buttonText.textContent = 'capturing';
 
     try {
+        // Extract content from DOM if it's a Twitter/X page
+        let extractedContent = null;
+        if (currentUrl.includes('twitter.com') || currentUrl.includes('x.com')) {
+            extractedContent = await extractTwitterContent();
+            
+            // Combine text and images into full content
+            let fullContent = extractedContent.text;
+            if (extractedContent.images.length > 0) {
+                const imageTexts = extractedContent.images.map(img => {
+                    return `[Image: ${img.alt || 'Tweet image'} - ${img.src}]`;
+                });
+                fullContent += '\n\n' + imageTexts.join('\n');
+            }
+            
+            if (fullContent.trim()) {
+                extractedContent.fullContent = fullContent;
+            }
+        }
+        
+        // YouTube videos are handled by the backend (transcript extraction via Python)
+        // No DOM extraction needed - backend will use YouTube Transcript API
+        const isYouTube = currentUrl.includes('youtube.com') || currentUrl.includes('youtu.be');
+        if (isYouTube) {
+            // Update button text to indicate YouTube processing
+            buttonText.textContent = 'extracting transcript...';
+            const videoId = extractYouTubeVideoId(currentUrl);
+            console.log(`Processing YouTube video: ${videoId}`);
+        }
+
         const response = await fetch(API_ENDPOINT, {
             method: 'POST',
             headers: {
@@ -54,12 +166,15 @@ async function saveUrl() {
             body: JSON.stringify({
                 url: currentUrl,
                 timestamp: new Date().toISOString(),
-                title: document.title || 'untitled'
+                title: document.title || 'untitled',
+                extractedContent: extractedContent
             }),
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+            console.error('Server error:', errorData);
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
@@ -68,7 +183,10 @@ async function saveUrl() {
         showSuccess();
     } catch (error) {
         console.error('Error saving URL:', error);
-        showError();
+        // Show more specific error message
+        const errorMessage = error.message || 'Failed to capture content';
+        console.error('Error details:', errorMessage);
+        showError(errorMessage);
     } finally {
         saveButton.disabled = false;
         saveButton.classList.remove('loading');
@@ -86,9 +204,13 @@ function showSuccess() {
 }
 
 // Show error state
-function showError() {
+function showError(message) {
     content.style.display = 'none';
     errorState.style.display = 'block';
+    // Log the error message for debugging
+    if (message) {
+        console.error('Capture failed:', message);
+    }
 }
 
 // Reset to initial state

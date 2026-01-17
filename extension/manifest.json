@@ -5,10 +5,11 @@
     "description": "turn content into capital. capture and trade narratives.",
     "permissions": [
         "activeTab",
-        "tabs"
+        "tabs",
+        "scripting"
     ],
     "host_permissions": [
-        "http://localhost:3000/*"
+        "http://localhost:3001/*"
     ],
     "action": {
         "default_popup": "popup.html",

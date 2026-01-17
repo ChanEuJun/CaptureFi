@@ -39,28 +39,17 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-6">
-            {/* AI Narrative Analysis */}
-            {item.hasNarrative && item.narrative && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.1 }}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-xs uppercase tracking-wider text-primary">
-                    ai narrative
-                  </h3>
-                </div>
-
-                <div className="bg-surface-2 rounded-lg p-4">
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {item.narrative.summary}
-                  </p>
-                </div>
-              </motion.div>
+            {/* AI Generated Summary */}
+            {item.narrative?.summary && (
+              <div>
+                <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+                  ai generated summary
+                </h3>
+                <p className="text-sm text-highlight leading-relaxed p-3 bg-highlight/10 rounded-lg border-l-2 border-highlight">
+                  {item.narrative.summary.replace(/^0+\s*/, '')}
+                </p>
+              </div>
             )}
-
-            <Separator />
 
             {/* Highlights */}
             <div>
@@ -69,15 +58,25 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
               </h3>
 
               <div className="space-y-3">
-                <p className="text-sm text-highlight leading-relaxed p-3 bg-highlight/10 rounded-lg border-l-2 border-highlight">
-                  "l2s are systematically draining liquidity from alt l1s. the rotation is happening faster than most realize."
-                </p>
+                {(() => {
+                  const content = item.full_content || item.excerpt;
+                  const sentences = content.match(/[^.!?]+[.!?]+/g) || [content];
+                  const meaningfulSentences = sentences.filter(s => s.trim().length > 30);
+                  const sourcePool = meaningfulSentences.length > 0 ? meaningfulSentences : [content];
 
-                <p className="text-sm text-highlight leading-relaxed p-3 bg-highlight/10 rounded-lg border-l-2 border-highlight">
-                  "eth ecosystem dominance will only accelerate as bridging costs decrease and l2 ux improves."
-                </p>
+                  const highlights = [...sourcePool]
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, 3);
+
+                  return highlights.map((text, idx) => (
+                    <p key={idx} className="text-sm text-highlight leading-relaxed p-3 bg-highlight/10 rounded-lg border-l-2 border-highlight">
+                      "{text.trim().toLowerCase()}"
+                    </p>
+                  ));
+                })()}
               </div>
             </div>
+
 
             <Button
               className="w-full mt-4"
@@ -85,9 +84,6 @@ export function DetailPanel({ item, onClose }: DetailPanelProps) {
             >
               Read Entire Source
             </Button>
-
-            <Separator />
-
 
             {/* Actions */}
             <div className="flex items-center gap-2 pt-4">

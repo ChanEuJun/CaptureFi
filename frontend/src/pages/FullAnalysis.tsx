@@ -5,34 +5,13 @@ import { motion } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
 import { useState, useEffect } from "react";
 import { ContentItem } from "@/components/ContentCard";
-import { Separator } from "@/components/ui/separator";
-
 
 export default function FullAnalysis() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [activeView, setActiveView] = useState("feed");
-    const [generating, setGenerating] = useState(false);
     const [item, setItem] = useState<ContentItem | null>(null);
     const [loading, setLoading] = useState(true);
-
-    const handleGenerate = async () => {
-        if (!id) return;
-        setGenerating(true);
-        try {
-            const response = await fetch(`http://localhost:3001/api/content/${id}/generate`, {
-                method: "POST"
-            });
-            const data = await response.json();
-            if (data.success) {
-                setItem(prev => prev ? { ...prev, narrative: data.narrative, hasNarrative: true } : null);
-            }
-        } catch (err) {
-            console.error("failed to generate:", err);
-        } finally {
-            setGenerating(false);
-        }
-    };
 
     useEffect(() => {
         fetch(`http://localhost:3001/api/content/${id}`)
@@ -61,7 +40,7 @@ export default function FullAnalysis() {
     }
 
     return (
-        <div className="flex h-screen bg-background overflow-hidden font-canela lowercase">
+        <div className="flex h-screen bg-background overflow-hidden">
             <Sidebar activeView={activeView} onViewChange={(view) => {
                 setActiveView(view);
                 navigate("/");
@@ -94,82 +73,58 @@ export default function FullAnalysis() {
                             </section>
                         </div>
 
-                        {/* Right Column: Analysis */}
+                        {/* Right Column: Highlights */}
                         <div className="space-y-8">
-                            {/* AI Narrative */}
-                            <section className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-xs uppercase tracking-widest text-primary font-semibold">
-                                        ai narrative
+                            {/* AI Generated Summary */}
+                            {item.narrative?.summary && (
+                                <section className="space-y-4">
+                                    <h3 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+                                        ai generated summary
                                     </h3>
-                                    {!item.narrative && (
-                                        <Button
-                                            variant="outline"
-                                            size="xs"
-                                            onClick={handleGenerate}
-                                            disabled={generating}
-                                            className="text-[10px] h-6"
-                                        >
-                                            {generating ? "generating..." : "generate summary"}
-                                        </Button>
-                                    )}
-                                </div>
-
-                                {item.narrative && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="bg-surface-2 rounded-xl p-6 border border-border/50"
-                                    >
-                                        <p className="text-sm text-foreground/80 leading-relaxed">
-                                            {item.narrative.summary}
+                                    <div className="p-4 bg-highlight/5 rounded-xl border-l-2 border-highlight">
+                                        <p className="text-sm text-highlight/90 leading-relaxed">
+                                            {item.narrative.summary.replace(/^0+\s*/, '')}
                                         </p>
-                                    </motion.div>
-                                )}
-                            </section>
-
-                            <Separator />
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Highlights */}
                             <section className="space-y-4">
                                 <h3 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
                                     key highlights
                                 </h3>
-
-                                {!item.narrative?.highlights && !item.narrative && (
-                                    <p className="text-xs text-muted-foreground italic">generate summary to see highlights</p>
-                                )}
-
                                 <div className="space-y-4">
-                                    {item.narrative?.highlights?.map((highlight, index) => (
-                                        <motion.div
-                                            key={index}
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.1 }}
-                                            className="p-4 bg-highlight/5 rounded-xl border-l-2 border-highlight"
-                                        >
-                                            <p className="text-sm text-highlight/90 leading-relaxed italic">
-                                                "{highlight.replace(/^"|"$/g, '')}"
-                                            </p>
-                                        </motion.div>
-                                    ))}
+                                    {(() => {
+                                        const content = item.full_content || item.excerpt;
+                                        // Split into sentences (simple regex)
+                                        const sentences = content.match(/[^.!?]+[.!?]+/g) || [content];
+                                        // Filter for sentences that look meaningful (e.g. > 40 chars)
+                                        const meaningfulSentences = sentences.filter(s => s.trim().length > 40);
 
-                                    {/* Default highlights if none generated yet but in mock */}
-                                    {!item.narrative?.highlights && item.id === "1" && !generating && (
-                                        <div className="p-4 bg-highlight/5 rounded-xl border-l-2 border-highlight">
-                                            <p className="text-sm text-highlight/90 leading-relaxed italic">
-                                                "l2s are systematically draining liquidity from alt l1s. the rotation is happening faster than most realize."
-                                            </p>
-                                        </div>
-                                    )}
+                                        // If we don't have enough, just use what we have
+                                        const sourcePool = meaningfulSentences.length > 0 ? meaningfulSentences : [content];
+
+                                        // Pick random sentences (up to 4)
+                                        const highlights = [...sourcePool]
+                                            .sort(() => 0.5 - Math.random())
+                                            .slice(0, 4);
+
+                                        return highlights.map((text, idx) => (
+                                            <div key={idx} className="p-4 bg-highlight/5 rounded-xl border-l-2 border-highlight">
+                                                <p className="text-sm text-highlight/90 leading-relaxed italic">
+                                                    "{text.trim().toLowerCase()}"
+                                                </p>
+                                            </div>
+                                        ));
+                                    })()}
                                 </div>
                             </section>
                         </div>
+
                     </div>
                 </main>
             </div>
         </div>
     );
 }
-

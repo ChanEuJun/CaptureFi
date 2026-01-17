@@ -7,10 +7,11 @@ interface ContentFeedProps {
   items: ContentItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onDelete?: (id: string) => void;
   activeView: string;
 }
 
-export function ContentFeed({ items, selectedId, onSelect, activeView }: ContentFeedProps) {
+export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView }: ContentFeedProps) {
   const viewTitles: Record<string, string> = {
     feed: "library",
     saved: "saved",
@@ -24,7 +25,7 @@ export function ContentFeed({ items, selectedId, onSelect, activeView }: Content
   };
 
   return (
-    <motion.section 
+    <motion.section
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="flex-1 min-w-[400px] max-w-2xl border-r border-border flex flex-col h-screen"
@@ -80,6 +81,7 @@ export function ContentFeed({ items, selectedId, onSelect, activeView }: Content
               item={item}
               isSelected={selectedId === item.id}
               onClick={() => onSelect(item.id)}
+              onDelete={onDelete}
             />
           </motion.div>
         ))}
