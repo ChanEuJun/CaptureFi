@@ -30,9 +30,9 @@ const navItems = [
 ];
 
 const tradingItems = [
-  { id: "trades", icon: TrendingUp, label: "trade" },
-  { id: "bridge", icon: Zap, label: "bridge optimization" },
-  { id: "wallet", icon: Wallet, label: "salt wallet" },
+  { id: "trade-ideas", icon: TrendingUp, label: "trade ideas" },
+  { id: "bridge-and-execute", icon: Zap, label: "bridge and executive" },
+  { id: "automate-trades", icon: Wallet, label: "automate trades" },
 ];
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
@@ -118,12 +118,13 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
           <span className="hidden lg:block ml-2 flex-1 text-left">add content</span>
         </Button>
         <Button
-          variant="sidebar"
+          variant={activeView === "preferences" ? "sidebarActive" : "sidebar"}
           size="sm"
+          onClick={() => onViewChange("preferences")}
           className="w-full"
         >
           <Settings className="w-4 h-4" />
-          <span className="hidden lg:block ml-2 flex-1 text-left">settings</span>
+          <span className="hidden lg:block ml-2 flex-1 text-left">preferences</span>
         </Button>
       </div>
     </motion.aside>

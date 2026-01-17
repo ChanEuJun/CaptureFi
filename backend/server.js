@@ -79,36 +79,80 @@ app.post('/api/captures', (req, res) => {
         return;
     }
 
-    // Otherwise, save URL with basic metadata (processor.py removed)
-    const id = Date.now().toString();
-    const source = new URL(url).hostname;
-    const title = req.body.title || `Content from ${source}`;
-    const excerpt = `Saved from ${url}`;
+    // Otherwise, use processor.py for content extraction
+    const pythonProcess = spawn('python3', [path.join(__dirname, 'processor.py'), url]);
 
-    const query = `INSERT INTO content 
-        (id, type, title, excerpt, source, author, tags, url, full_content, extra_info, hasNarrative) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    let resultData = '';
+    pythonProcess.stdout.on('data', (data) => {
+        resultData += data.toString();
+    });
 
-    const params = [
-        id,
-        'article',
-        title,
-        excerpt,
-        source,
-        'Unknown',
-        JSON.stringify([]),
-        url,
-        `Content saved from: ${url}\n\nPlease visit the URL to view the full content.`,
-        JSON.stringify({ method: 'basic_save', saved_at: new Date().toISOString() }),
-        0
-    ];
+    pythonProcess.stderr.on('data', (data) => {
+        console.error(`Python error: ${data}`);
+    });
 
-    db.run(query, params, function (err) {
-        if (err) {
-            console.error('Database error:', err.message);
-            return res.status(500).json({ error: 'Failed to save to database' });
+    pythonProcess.on('close', (code) => {
+        // Clean the result data - remove any non-JSON content
+        resultData = resultData.trim();
+
+        // Try to extract JSON from the output (in case there's extra text)
+        let jsonMatch = resultData.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            resultData = jsonMatch[0];
         }
-        res.json({ success: true, id: id });
+
+        if (code !== 0) {
+            // Try to parse error message if it's JSON
+            try {
+                const errorData = JSON.parse(resultData);
+                return res.status(500).json({ error: errorData.error || 'Failed to extract content' });
+            } catch {
+                return res.status(500).json({ error: 'Failed to extract content' });
+            }
+        }
+
+        try {
+            const extracted = JSON.parse(resultData);
+            if (extracted.error) {
+                console.error('Extraction error:', extracted.error);
+                return res.status(500).json({ error: extracted.error });
+            }
+
+            const id = Date.now().toString();
+            const source = new URL(url).hostname;
+            const excerpt = extracted.content.substring(0, 150) + (extracted.content.length > 150 ? '...' : '');
+
+            const query = `INSERT INTO content 
+                (id, type, title, excerpt, source, author, tags, url, full_content, extra_info, hasNarrative) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+            const params = [
+                id,
+                extracted.type,
+                extracted.title || 'Untitled',
+                excerpt,
+                source,
+                extracted.author || 'Unknown',
+                JSON.stringify([]),
+                url,
+                extracted.content,
+                JSON.stringify(extracted.extra_info || {}),
+                0
+            ];
+
+            db.run(query, params, function (err) {
+                if (err) {
+                    console.error('Database error:', err.message);
+                    return res.status(500).json({ error: 'Failed to save to database' });
+                }
+                res.json({ success: true, id: id });
+            });
+
+        } catch (e) {
+            console.error('Parsing error:', e);
+            console.error('Raw output:', resultData.substring(0, 200));
+            res.status(500).json({ error: 'Failed to parse extraction result' });
+        }
     });
 });
 

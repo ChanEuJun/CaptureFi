@@ -20,8 +20,10 @@ export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView 
     twitter: "x / twitter",
     youtube: "youtube",
     articles: "articles",
-    trades: "active trades",
-    wallet: "salt wallet",
+    "trade-ideas": "trade ideas",
+    "bridge-and-execute": "bridge and executive",
+    "automate-trades": "automate trades",
+    preferences: "preferences",
   };
 
   return (
