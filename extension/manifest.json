@@ -1,0 +1,27 @@
+{
+    "manifest_version": 3,
+    "name": "capturefi",
+    "version": "1.0.0",
+    "description": "turn content into capital. capture and trade narratives.",
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "scripting"
+    ],
+    "host_permissions": [
+        "http://localhost:3001/*"
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "icons/logo.png",
+            "48": "icons/logo.png",
+            "128": "icons/logo.png"
+        }
+    },
+    "icons": {
+        "16": "icons/logo.png",
+        "48": "icons/logo.png",
+        "128": "icons/logo.png"
+    }
+}
