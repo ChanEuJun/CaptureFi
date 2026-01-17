@@ -3,7 +3,6 @@ import json
 import re
 import requests
 from bs4 import BeautifulSoup
-from youtube_transcript_api import YouTubeTranscriptApi
 from newspaper import Article
 
 HEADERS = {
@@ -176,43 +175,6 @@ def extract_twitter_thread(url):
 
 
 
-def extract_youtube_transcript(url):
-    # Extract video ID from URL (NOT the full URL, just the ID)
-    # For https://www.youtube.com/watch?v=12345, the ID is 12345
-    video_id = None
-    if 'youtu.be/' in url:
-        video_id = url.split('/')[-1].split('?')[0]
-    elif 'v=' in url:
-        video_id = url.split('v=')[1].split('&')[0]
-    
-    if not video_id:
-        return {"error": "Could not extract Video ID from URL"}
-    
-    try:
-        # Use YouTube Transcript API ONLY - no scraping, no HTTP requests to YouTube pages
-        ytt_api = YouTubeTranscriptApi()
-        fetched_transcript = ytt_api.fetch(video_id)
-        
-        # Extract text from FetchedTranscript snippets
-        text_items = []
-        for snippet in fetched_transcript.snippets:
-            text_items.append(snippet.text)
-        
-        full_text = " ".join(text_items)
-        
-        if not full_text or len(full_text.strip()) == 0:
-            return {"error": "YouTube transcript is empty"}
-        
-        return {
-            "type": "youtube",
-            "content": full_text,
-            "extra_info": {"video_id": video_id},
-            "title": f"YouTube Video {video_id}"
-        }
-    except Exception as e:
-        return {"error": f"YouTube transcript extraction failed: {str(e)}"}
-
-
 def extract_general_article(url):
     try:
         article = Article(url)
@@ -256,9 +218,6 @@ def process_url(url):
     if 'twitter.com' in url or 'x.com' in url:
         if '/status/' in url:
             return extract_twitter_thread(url)
-    
-    if 'youtube.com' in url or 'youtu.be' in url:
-        return extract_youtube_transcript(url)
         
     # Default to article
     return extract_general_article(url)

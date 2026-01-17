@@ -22,23 +22,6 @@ async function getCurrentTabUrl() {
     }
 }
 
-// Extract YouTube video ID from URL
-function extractYouTubeVideoId(url) {
-    if (!url) return null;
-    
-    // Handle youtu.be/ format
-    if (url.includes('youtu.be/')) {
-        return url.split('youtu.be/')[1].split('?')[0].split('&')[0];
-    }
-    
-    // Handle youtube.com/watch?v= format
-    if (url.includes('youtube.com/watch') && url.includes('v=')) {
-        return url.split('v=')[1].split('&')[0];
-    }
-    
-    return null;
-}
-
 // Extract content from Twitter/X page DOM
 async function extractTwitterContent() {
     try {
@@ -148,16 +131,6 @@ async function saveUrl() {
             }
         }
         
-        // YouTube videos are handled by the backend (transcript extraction via Python)
-        // No DOM extraction needed - backend will use YouTube Transcript API
-        const isYouTube = currentUrl.includes('youtube.com') || currentUrl.includes('youtu.be');
-        if (isYouTube) {
-            // Update button text to indicate YouTube processing
-            buttonText.textContent = 'extracting transcript...';
-            const videoId = extractYouTubeVideoId(currentUrl);
-            console.log(`Processing YouTube video: ${videoId}`);
-        }
-
         const response = await fetch(API_ENDPOINT, {
             method: 'POST',
             headers: {
