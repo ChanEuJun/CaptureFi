@@ -15,6 +15,47 @@ const db = new sqlite3.Database(dbPath);
 const { spawn } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 
+// Initialize database tables
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS content (
+        id TEXT PRIMARY KEY,
+        type TEXT,
+        title TEXT,
+        excerpt TEXT,
+        source TEXT,
+        author TEXT,
+        tags TEXT,
+        url TEXT,
+        full_content TEXT,
+        extra_info TEXT,
+        hasNarrative INTEGER,
+        readTime TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS trade_ideas (
+        id TEXT PRIMARY KEY,
+        symbol TEXT,
+        side TEXT,
+        entry_price TEXT,
+        stop_loss TEXT,
+        take_profit TEXT,
+        rationale TEXT,
+        status TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+});
+
+app.get('/api/trade-ideas', (req, res) => {
+    db.all('SELECT * FROM trade_ideas ORDER BY created_at DESC', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
 app.get('/api/content', (req, res) => {
     db.all('SELECT * FROM content ORDER BY created_at DESC', [], (err, rows) => {
         if (err) {
@@ -48,9 +89,13 @@ app.post('/api/captures', (req, res) => {
         const content = extractedContent.fullContent;
         const excerpt = content.substring(0, 150) + (content.length > 150 ? '...' : '');
 
+        // Simple read time for DOM extraction
+        const words = content.split(/\s+/).length;
+        const readTime = Math.ceil(words / 200) + ' min' + (Math.ceil(words / 200) > 1 ? 's' : '');
+
         const query = `INSERT INTO content 
-            (id, type, title, excerpt, source, author, tags, url, full_content, extra_info, hasNarrative) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            (id, type, title, excerpt, source, author, tags, url, full_content, extra_info, hasNarrative, readTime) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
         const params = [
             id,
@@ -59,14 +104,15 @@ app.post('/api/captures', (req, res) => {
             excerpt,
             source,
             'Unknown',
-            JSON.stringify([]),
+            JSON.stringify([]), // We could implement JS tagging here too, but processor.py is primary
             url,
             content,
             JSON.stringify({
                 method: 'dom_extraction',
                 images: extractedContent.images || []
             }),
-            0
+            0,
+            readTime
         ];
 
         db.run(query, params, function (err) {
@@ -123,8 +169,8 @@ app.post('/api/captures', (req, res) => {
             const excerpt = extracted.content.substring(0, 150) + (extracted.content.length > 150 ? '...' : '');
 
             const query = `INSERT INTO content 
-                (id, type, title, excerpt, source, author, tags, url, full_content, extra_info, hasNarrative) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                (id, type, title, excerpt, source, author, tags, url, full_content, extra_info, hasNarrative, readTime) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const params = [
                 id,
@@ -133,11 +179,12 @@ app.post('/api/captures', (req, res) => {
                 excerpt,
                 source,
                 extracted.author || 'Unknown',
-                JSON.stringify([]),
+                JSON.stringify(extracted.tags || []),
                 url,
                 extracted.content,
                 JSON.stringify(extracted.extra_info || {}),
-                0
+                0,
+                extracted.readTime || '1 min'
             ];
 
             db.run(query, params, function (err) {
@@ -181,6 +228,17 @@ app.get('/api/content/:id', (req, res) => {
 app.delete('/api/content/:id', (req, res) => {
     const { id } = req.params;
     db.run('DELETE FROM content WHERE id = ?', [id], function (err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({ success: true, deleted: this.changes });
+    });
+});
+
+app.delete('/api/trade-ideas/:id', (req, res) => {
+    const { id } = req.params;
+    db.run('DELETE FROM trade_ideas WHERE id = ?', [id], function (err) {
         if (err) {
             res.status(500).json({ error: err.message });
             return;

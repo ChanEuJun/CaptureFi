@@ -19,6 +19,7 @@ export interface ContentItem {
   date: string;
   readTime?: string;
   tags: string[];
+  url?: string;
   thumbnail?: string;
   hasNarrative?: boolean;
   full_content?: string;
@@ -121,15 +122,6 @@ export function ContentCard({ item, isSelected, onClick, onDelete }: ContentCard
                 {tag}
               </Badge>
             ))}
-            {item.hasNarrative && (
-              <Badge
-                variant="outline"
-                className="text-xs px-2 py-0 border-primary/50 text-primary"
-              >
-                <TrendingUp className="w-3 h-3 mr-1" />
-                trade ready
-              </Badge>
-            )}
           </div>
         </div>
 

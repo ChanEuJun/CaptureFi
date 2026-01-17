@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { ContentCard, ContentItem } from "./ContentCard";
+import { TradeCard, TradeIdea } from "./TradeCard";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Tag, Clock } from "lucide-react";
 
 interface ContentFeedProps {
-  items: ContentItem[];
+  items: (ContentItem | TradeIdea)[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -20,11 +21,13 @@ export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView 
     twitter: "x / twitter",
     youtube: "youtube",
     articles: "articles",
-    "trade-ideas": "trade ideas",
-    "bridge-and-execute": "bridge and executive",
-    "automate-trades": "automate trades",
-    preferences: "preferences",
+    "trade-ideas": "trading",
+    "bridge-and-execute": "bridge optimization",
+    "automate-trades": "salt wallet",
+    "preferences": "preferences",
   };
+
+  const isTradeView = activeView === "trade-ideas" || activeView === "bridge-and-execute" || activeView === "automate-trades";
 
   return (
     <motion.section
@@ -42,32 +45,57 @@ export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView 
             <ChevronDown className="w-4 h-4 text-muted-foreground" />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="xs">
-              <Tag className="w-3 h-3 mr-1" />
-              manage tags
-            </Button>
-            <Button variant="ghost" size="xs">
-              <Clock className="w-3 h-3 mr-1" />
-              last opened
-            </Button>
+            {!isTradeView && (
+              <>
+                <Button variant="ghost" size="xs">
+                  <Tag className="w-3 h-3 mr-1" />
+                  manage tags
+                </Button>
+                <Button variant="ghost" size="xs">
+                  <Clock className="w-3 h-3 mr-1" />
+                  last opened
+                </Button>
+              </>
+            )}
+            {isTradeView && (
+              <Button variant="ghost" size="xs">
+                <Tag className="w-3 h-3 mr-1" />
+                filter by status
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-4 text-sm">
-          <button className="text-foreground font-medium pb-2 border-b-2 border-primary">
-            all
-          </button>
-          <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
-            later
-          </button>
-          <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
-            shortlist
-          </button>
-          <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
-            archive
-          </button>
-        </div>
+        {!isTradeView && (
+          <div className="flex gap-4 text-sm">
+            <button className="text-foreground font-medium pb-2 border-b-2 border-primary">
+              all
+            </button>
+            <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
+              later
+            </button>
+            <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
+              shortlist
+            </button>
+            <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
+              archive
+            </button>
+          </div>
+        )}
+        {isTradeView && (
+          <div className="flex gap-4 text-sm">
+            <button className="text-foreground font-medium pb-2 border-b-2 border-primary">
+              active
+            </button>
+            <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
+              closed
+            </button>
+            <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
+              cancelled
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Content List */}
@@ -79,14 +107,28 @@ export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
           >
-            <ContentCard
-              item={item}
-              isSelected={selectedId === item.id}
-              onClick={() => onSelect(item.id)}
-              onDelete={onDelete}
-            />
+            {isTradeView ? (
+              <TradeCard
+                item={item as TradeIdea}
+                isSelected={selectedId === item.id}
+                onClick={() => onSelect(item.id)}
+                onDelete={onDelete}
+              />
+            ) : (
+              <ContentCard
+                item={item as ContentItem}
+                isSelected={selectedId === item.id}
+                onClick={() => onSelect(item.id)}
+                onDelete={onDelete}
+              />
+            )}
           </motion.div>
         ))}
+        {items.length === 0 && (
+          <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
+            <p>no {isTradeView ? "items" : "content"} found</p>
+          </div>
+        )}
       </div>
     </motion.section>
   );

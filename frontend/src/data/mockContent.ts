@@ -11,14 +11,6 @@ export const mockContent: ContentItem[] = [
     date: "2h ago",
     readTime: "2 mins",
     tags: ["ethereum", "l2", "solana"],
-    hasNarrative: true,
-    narrative: {
-      summary: "thesis suggests ethereum l2s are capturing market share from alternative layer 1 chains. the narrative indicates a structural shift in liquidity flows favoring the ethereum ecosystem.",
-      tradePair: {
-        long: "ETH",
-        short: "SOL",
-      },
-    },
   },
   {
     id: "2",
@@ -49,7 +41,7 @@ export const mockContent: ContentItem[] = [
     author: "David Hoffman",
     date: "3d ago",
     readTime: "12 mins",
-    tags: ["celestia", "modular", "da"],
+    tags: ["celestia", "modular", "blockhain"],
     hasNarrative: true,
     narrative: {
       summary: "the modular thesis positions celestia as infrastructure for next-gen rollups. this represents a bet on the modular vs monolithic blockchain debate.",

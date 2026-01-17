@@ -30,9 +30,10 @@ const navItems = [
 ];
 
 const tradingItems = [
-  { id: "trade-ideas", icon: TrendingUp, label: "trade ideas" },
-  { id: "bridge-and-execute", icon: Zap, label: "bridge and executive" },
-  { id: "automate-trades", icon: Wallet, label: "automate trades" },
+  { id: "trade-ideas", icon: TrendingUp, label: "trading" },
+  { id: "bridge-and-execute", icon: Zap, label: "bridge optimization" },
+  { id: "automate-trades", icon: Wallet, label: "salt wallet" },
+  { id: "preferences", icon: Settings, label: "preferences" },
 ];
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {

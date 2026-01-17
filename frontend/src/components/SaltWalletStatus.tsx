@@ -45,7 +45,7 @@ export function SaltWalletStatus({ isConnected, policyActive, onConnect }: SaltW
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-long" />
-          <span className="text-sm font-medium text-foreground">salt wallet</span>
+          <span className="text-sm font-medium text-foreground">preferences</span>
         </div>
         <Button variant="ghost" size="icon" className="h-6 w-6">
           <Settings className="w-3 h-3" />
