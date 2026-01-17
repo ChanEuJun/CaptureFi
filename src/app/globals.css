@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* -- capturing the signal -- */
+  --bg-app: #111111;
+  /* Deepest background */
+  --bg-panel: #1A1A1A;
+  /* Sidebar / Context Panel */
+  --bg-card: #222222;
+  /* Signal Cards */
+  --bg-hover: #2A2A2A;
+  /* Hover states */
+
+  --border-subtle: #333333;
+  --border-active: #444444;
+
+  /* -- typography -- */
+  --text-primary: #EDEDED;
+  --text-secondary: #A1A1A1;
+  --text-muted: #666666;
+
+  /* -- brand -- */
+  --accent-primary: #F4D03F;
+  /* CaptureFi Yellow */
+  --accent-dim: #D4B238;
+
+  /* -- semantic -- */
+  --success: #4ADE80;
+  --error: #F87171;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  /* App-like feel, handle scrolling in containers */
+}
+
+/* Custom Scrollbar for Webkit */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-active);
+}
