@@ -20,7 +20,7 @@ export default function FullAnalysis() {
     const [loading, setLoading] = useState(true);
 
     // Pear Integration State
-    const [tradeAmount, setTradeAmount] = useState("5.0");
+    const [tradeAmount, setTradeAmount] = useState("1.0");
     const [bridgeAmount, setBridgeAmount] = useState("10.0");
     const [pearLoading, setPearLoading] = useState(false);
     const [pearStatus, setPearStatus] = useState<string | null>(null);
@@ -39,10 +39,15 @@ export default function FullAnalysis() {
             if (data.success) {
                 setPearStatus(`Success! Trade executed: ${data.trade.positionId || 'ID Pending'}`);
             } else {
-                setPearStatus(`Error: ${data.error || 'Failed to execute trade'}`);
+                // If the error includes "Insufficient funds", provide a helpful message
+                if (data.error && data.error.includes("Insufficient funds")) {
+                    setPearStatus(data.error);
+                } else {
+                    setPearStatus(`Error: ${data.error || 'Failed to execute trade'}`);
+                }
             }
         } catch (err: any) {
-            setPearStatus(`Error: ${err.message}`);
+            setPearStatus(`Connection Error: ${err.message}`);
         } finally {
             setPearLoading(false);
         }

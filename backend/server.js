@@ -445,18 +445,44 @@ app.post('/api/pear/trade', async (req, res) => {
         }
         const { accessToken } = await loginRes.json();
 
-        // 4. Check/Create Agent Wallet (might be needed for Hyperliquid)
+        // 4. Check/Create Agent Wallet
         console.log('Pear Trade: Checking agent wallet...');
         const agentWalletRes = await fetch(`${PEAR_API_URL}/agentWallet`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
-        if (agentWalletRes.status === 404) {
+        let agentAddress = null;
+        if (agentWalletRes.ok) {
+            const agentData = await agentWalletRes.json();
+            agentAddress = agentData.agentWalletAddress;
+        }
+
+        if (!agentAddress) {
             console.log('Pear Trade: Creating agent wallet...');
-            await fetch(`${PEAR_API_URL}/agentWallet`, {
+            const createAgentRes = await fetch(`${PEAR_API_URL}/agentWallet`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
+            if (createAgentRes.ok) {
+                const createData = await createAgentRes.json();
+                agentAddress = createData.agentWalletAddress;
+                console.log(`Pear Trade: Agent wallet created: ${agentAddress}. Note: Approval might be required.`);
+            }
+        }
+
+        // 4.5 Check Balance
+        console.log('Pear Trade: Checking account balance...');
+        const balanceRes = await fetch(`${PEAR_API_URL}/vault-wallet/balances`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+
+        if (balanceRes.ok) {
+            const balanceData = await balanceRes.json();
+            const perpBalance = parseFloat(balanceData.perpBalances?.USDC || '0');
+            console.log(`Pear Trade: Current perp balance: $${perpBalance}`);
+            if (perpBalance < parseFloat(amount)) {
+                throw new Error(`Insufficient funds on Hyperliquid. Available: $${perpBalance}, Required: $${amount}. Please bridge USDC from Arbitrum to Hyperliquid.`);
+            }
         }
 
         // 5. Execute Trade: Long SOL, Short BTC
@@ -468,18 +494,19 @@ app.post('/api/pear/trade', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                slippage: 0.01,
-                executionType: 'MARKET',
+                slippage: 0.05,
+                executionType: 'SYNC',
                 leverage: 5,
                 usdValue: parseFloat(amount),
-                longAssets: [{ asset: 'SOL', weight: 0.5 }],
-                shortAssets: [{ asset: 'BTC', weight: 0.5 }]
+                longAssets: [{ asset: 'SOL', weight: 1.0 }],
+                shortAssets: [{ asset: 'BTC', weight: 1.0 }]
             })
         });
 
         if (!tradeRes.ok) {
             const errText = await tradeRes.text();
-            throw new Error(`Trade failed: ${errText}`);
+            console.error('Pear Trade API Error:', errText);
+            throw new Error(`Execution failed: ${errText}`);
         }
 
         const tradeData = await tradeRes.json();
