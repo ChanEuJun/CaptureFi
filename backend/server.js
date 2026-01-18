@@ -9,13 +9,16 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 
-const dbPath = path.resolve(__dirname, 'database.sqlite');
-const db = new sqlite3.Database(dbPath);
-
 const { spawn } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 
-// Initialize database tables
+const dbPath = path.resolve(__dirname, 'database.sqlite');
+const finalDbPath = path.resolve(__dirname, 'final_trades.sqlite');
+
+const db = new sqlite3.Database(dbPath);
+const finalDb = new sqlite3.Database(finalDbPath);
+
+// Initialize main database tables
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS content (
         id TEXT PRIMARY KEY,
@@ -46,6 +49,34 @@ db.serialize(() => {
     )`);
 });
 
+// Initialize final trades database tables
+finalDb.serialize(() => {
+    finalDb.run(`CREATE TABLE IF NOT EXISTS final_trades (
+        id TEXT PRIMARY KEY,
+        symbol TEXT,
+        side TEXT,
+        entry_price TEXT,
+        stop_loss TEXT,
+        take_profit TEXT,
+        rationale TEXT,
+        status TEXT,
+        finalized_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    finalDb.run(`CREATE TABLE IF NOT EXISTS final_bridges (
+        id TEXT PRIMARY KEY,
+        symbol TEXT,
+        side TEXT,
+        entry_price TEXT,
+        stop_loss TEXT,
+        take_profit TEXT,
+        rationale TEXT,
+        status TEXT,
+        bridge_info TEXT, -- JSON string for routing details
+        bridged_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+});
+
 app.get('/api/trade-ideas', (req, res) => {
     db.all('SELECT * FROM trade_ideas ORDER BY created_at DESC', [], (err, rows) => {
         if (err) {
@@ -53,6 +84,79 @@ app.get('/api/trade-ideas', (req, res) => {
             return;
         }
         res.json(rows);
+    });
+});
+
+app.get('/api/final-trades', (req, res) => {
+    finalDb.all('SELECT * FROM final_trades ORDER BY finalized_at DESC', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
+app.get('/api/final-bridges', (req, res) => {
+    finalDb.all('SELECT * FROM final_bridges ORDER BY bridged_at DESC', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        // Parse bridge_info
+        const bridges = rows.map(row => ({
+            ...row,
+            bridge_info: JSON.parse(row.bridge_info || '{}'),
+        }));
+        res.json(bridges);
+    });
+});
+
+app.post('/api/trade-ideas/:id/finalize', (req, res) => {
+    const { id } = req.params;
+    db.get('SELECT * FROM trade_ideas WHERE id = ?', [id], (err, row) => {
+        if (err || !row) {
+            return res.status(404).json({ error: 'Trade idea not found' });
+        }
+
+        const query = `INSERT INTO final_trades 
+            (id, symbol, side, entry_price, stop_loss, take_profit, rationale, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+        finalDb.run(query, [row.id, row.symbol, row.side, row.entry_price, row.stop_loss, row.take_profit, row.rationale, 'FINALIZED'], (err) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ success: true });
+        });
+    });
+});
+
+app.post('/api/final-trades/:id/bridge', (req, res) => {
+    const { id } = req.params;
+    finalDb.get('SELECT * FROM final_trades WHERE id = ?', [id], (err, row) => {
+        if (err || !row) {
+            return res.status(404).json({ error: 'Final trade not found' });
+        }
+
+        const bridgeInfo = {
+            quote: '0.5 ETH',
+            eta: '5 mins',
+            steps: ['Approve', 'Bridge', 'Swap'],
+            progress: 0,
+            finalAmount: '0.495 ETH'
+        };
+
+        const query = `INSERT INTO final_bridges 
+            (id, symbol, side, entry_price, stop_loss, take_profit, rationale, status, bridge_info) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+        finalDb.run(query, [row.id, row.symbol, row.side, row.entry_price, row.stop_loss, row.take_profit, row.rationale, 'BRIDGING', JSON.stringify(bridgeInfo)], (err) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ success: true });
+        });
     });
 });
 
@@ -239,6 +343,28 @@ app.delete('/api/content/:id', (req, res) => {
 app.delete('/api/trade-ideas/:id', (req, res) => {
     const { id } = req.params;
     db.run('DELETE FROM trade_ideas WHERE id = ?', [id], function (err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({ success: true, deleted: this.changes });
+    });
+});
+
+app.delete('/api/final-trades/:id', (req, res) => {
+    const { id } = req.params;
+    finalDb.run('DELETE FROM final_trades WHERE id = ?', [id], function (err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({ success: true, deleted: this.changes });
+    });
+});
+
+app.delete('/api/final-bridges/:id', (req, res) => {
+    const { id } = req.params;
+    finalDb.run('DELETE FROM final_bridges WHERE id = ?', [id], function (err) {
         if (err) {
             res.status(500).json({ error: err.message });
             return;

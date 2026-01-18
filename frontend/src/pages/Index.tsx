@@ -15,12 +15,16 @@ const Index = () => {
   useEffect(() => {
     setLoading(true);
     setSelectedId(null); // Reset selection when view changes
-    const endpoint = (activeView === "trade-ideas" || activeView === "bridge-and-execute" || activeView === "automate-trades") ? "trade-ideas" : "content";
+
+    let endpoint = "content";
+    if (activeView === "trade-ideas") endpoint = "trade-ideas";
+    if (activeView === "bridge-and-execute") endpoint = "final-bridges";
+    if (activeView === "automate-trades") endpoint = "final-trades";
 
     fetch(`http://localhost:3001/api/${endpoint}`)
       .then((res) => res.json())
       .then((data) => {
-        if (endpoint === "trade-ideas") {
+        if (endpoint !== "content") {
           setTradeIdeas(data);
         } else {
           setContent(data);
@@ -33,20 +37,24 @@ const Index = () => {
       });
   }, [activeView]);
 
-  const selectedItem = (activeView === "trade-ideas" || activeView === "bridge-and-execute" || activeView === "automate-trades")
+  const isTradeView = (activeView === "trade-ideas" || activeView === "bridge-and-execute" || activeView === "automate-trades");
+
+  const selectedItem = isTradeView
     ? tradeIdeas.find((item) => item.id === selectedId) || null
     : content.find((item) => item.id === selectedId) || null;
 
   const handleDelete = async (id: string) => {
-    const isTradeView = (activeView === "trade-ideas" || activeView === "bridge-and-execute" || activeView === "automate-trades");
-    const endpoint = isTradeView ? 'trade-ideas' : 'content';
+    let endpoint = "content";
+    if (activeView === "trade-ideas") endpoint = "trade-ideas";
+    if (activeView === "bridge-and-execute") endpoint = "final-bridges";
+    if (activeView === "automate-trades") endpoint = "final-trades";
 
     try {
       const response = await fetch(`http://localhost:3001/api/${endpoint}/${id}`, {
         method: "DELETE",
       });
       if (response.ok) {
-        if (isTradeView) {
+        if (endpoint !== "content") {
           setTradeIdeas((prev) => prev.filter((item) => item.id !== id));
         } else {
           setContent((prev) => prev.filter((item) => item.id !== id));
@@ -79,7 +87,7 @@ const Index = () => {
         onDelete={handleDelete}
         activeView={activeView}
       />
-      <DetailPanel item={selectedItem as any} onClose={() => setSelectedId(null)} />
+      <DetailPanel item={selectedItem as any} onClose={() => setSelectedId(null)} activeView={activeView} />
     </div>
   );
 
