@@ -16,10 +16,16 @@ const Index = () => {
     setLoading(true);
     setSelectedId(null); // Reset selection when view changes
 
+    if (activeView === "automate-trades" || activeView === "preferences") {
+      setContent([]);
+      setTradeIdeas([]);
+      setLoading(false);
+      return;
+    }
+
     let endpoint = "content";
     if (activeView === "trade-ideas") endpoint = "trade-ideas";
-    if (activeView === "bridge-and-execute") endpoint = "final-bridges";
-    if (activeView === "automate-trades") endpoint = "final-trades";
+    if (activeView === "bridge-and-execute") endpoint = "final-trades";
 
     fetch(`http://localhost:3001/api/${endpoint}`)
       .then((res) => res.json())
@@ -46,8 +52,7 @@ const Index = () => {
   const handleDelete = async (id: string) => {
     let endpoint = "content";
     if (activeView === "trade-ideas") endpoint = "trade-ideas";
-    if (activeView === "bridge-and-execute") endpoint = "final-bridges";
-    if (activeView === "automate-trades") endpoint = "final-trades";
+    if (activeView === "bridge-and-execute") endpoint = "final-trades";
 
     try {
       const response = await fetch(`http://localhost:3001/api/${endpoint}/${id}`, {
@@ -80,14 +85,22 @@ const Index = () => {
   return (
     <div className="flex h-screen bg-background overflow-hidden" id="main-content">
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
-      <ContentFeed
-        items={(activeView === "trade-ideas" || activeView === "bridge-and-execute" || activeView === "automate-trades") ? tradeIdeas : content}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onDelete={handleDelete}
-        activeView={activeView}
-      />
-      <DetailPanel item={selectedItem as any} onClose={() => setSelectedId(null)} activeView={activeView} />
+      {(activeView !== "automate-trades" && activeView !== "preferences") ? (
+        <>
+          <ContentFeed
+            items={(activeView === "trade-ideas" || activeView === "bridge-and-execute") ? tradeIdeas : content}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onDelete={handleDelete}
+            activeView={activeView}
+          />
+          <DetailPanel item={selectedItem as any} onClose={() => setSelectedId(null)} activeView={activeView} />
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col h-screen bg-background items-center justify-center text-muted-foreground/30 font-medium italic">
+          {/* Truly nothing */}
+        </div>
+      )}
     </div>
   );
 
