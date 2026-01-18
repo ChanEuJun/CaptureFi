@@ -80,116 +80,167 @@ export function DetailPanel({ item, onClose, activeView }: DetailPanelProps) {
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-xl font-bold text-foreground">{(item as TradeIdea).symbol}</h2>
+                  <h2 className="text-xl font-bold text-foreground">{(item as TradeIdea).title || (item as TradeIdea).symbol}</h2>
                   <Badge
                     variant="outline"
-                    className={`uppercase ${(item as TradeIdea).side === "LONG" ? "border-green-500/50 text-green-500 bg-green-500/10" : "border-red-500/50 text-red-500 bg-red-500/10"}`}
+                    className={`uppercase ${(item as TradeIdea).side === "LONG" ? "border-green-500/50 text-green-500 bg-green-500/10" : (item as TradeIdea).side === "SHORT" ? "border-red-500/50 text-red-500 bg-red-500/10" : "border-primary/50 text-primary bg-primary/10"}`}
                   >
                     {(item as TradeIdea).side}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {isBridgeView
-                    ? `Bridging since ${new Date((item as any).bridged_at).toLocaleString()}`
-                    : `Suggested at ${new Date((item as TradeIdea).created_at).toLocaleString()}`
-                  }
-                </p>
+                {!isBridgeView && (
+                  <p className="text-sm text-muted-foreground">
+                    Suggested at {new Date((item as TradeIdea).created_at).toLocaleString()}
+                  </p>
+                )}
               </div>
 
-              {isBridgeView && (item as any).bridge_info && (
-                <div className="space-y-4 bg-surface-2 p-5 rounded-xl border border-border shadow-sm">
-                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                    <span className="text-sm font-medium text-muted-foreground">Route Quote</span>
-                    <span className="text-lg font-bold text-primary">{(item as any).bridge_info.quote}</span>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground uppercase tracking-wider">
-                      <span>Bridging Steps</span>
-                      <span>ETA: {(item as any).bridge_info.eta}</span>
-                    </div>
-
-                    <div className="relative pt-2 pb-6">
-                      <div className="absolute top-5 left-0 w-full h-[2px] bg-border" />
-                      <div className="relative flex justify-between">
-                        {(item as any).bridge_info.steps.map((step: string, idx: number) => (
-                          <div key={idx} className="flex flex-col items-center gap-2 group">
-                            <div className={`w-3 h-3 rounded-full border-2 bg-card z-10 transition-colors ${idx === 0 ? "border-primary bg-primary" : "border-border"}`} />
-                            <span className={`text-[10px] font-medium uppercase tracking-tighter ${idx === 0 ? "text-primary" : "text-muted-foreground"}`}>
-                              {step}
-                            </span>
-                          </div>
-                        ))}
+              {/* Hide everything else if in bridge view, as requested */}
+              {!isBridgeView && (
+                <>
+                  {/* SPECIFICATIONS TABLE */}
+                  {(item as TradeIdea).metadata?.specifications && (
+                    <div className="space-y-4">
+                      <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Specific Trade Recommendations
+                      </h3>
+                      <div className="overflow-hidden rounded-xl border border-border bg-surface-2 shadow-sm">
+                        <table className="w-full text-left text-sm">
+                          <thead>
+                            <tr className="bg-surface-3 border-b border-border">
+                              <th className="p-3 font-medium text-muted-foreground">Parameter</th>
+                              {(item as TradeIdea).side === "PAIR" ? (
+                                <>
+                                  <th className="p-3 font-medium text-green-500">Long Side</th>
+                                  <th className="p-3 font-medium text-red-500">Short Side</th>
+                                </>
+                              ) : (
+                                <th className="p-3 font-medium text-primary">Details</th>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/50">
+                            {(item as TradeIdea).metadata!.specifications.map((spec, idx) => (
+                              <tr key={idx} className="hover:bg-surface-1/50 transition-colors">
+                                <td className="p-3 font-medium text-foreground">{spec.label}</td>
+                                {(item as TradeIdea).side === "PAIR" ? (
+                                  <>
+                                    <td className="p-3 text-muted-foreground">{spec.long}</td>
+                                    <td className="p-3 text-muted-foreground">{spec.short}</td>
+                                  </>
+                                ) : (
+                                  <td className="p-3 text-muted-foreground">{spec.value}</td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="pt-2 flex justify-between items-center text-sm border-t border-border/50">
-                    <span className="text-muted-foreground">Final Amount</span>
-                    <span className="font-mono font-bold text-foreground">{(item as any).bridge_info.finalAmount}</span>
-                  </div>
-                </div>
+                  {/* RATIONALE QUOTES */}
+                  {(item as TradeIdea).metadata?.quotes && (
+                    <div className="space-y-4">
+                      <h3 className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Rationale (Direct Quotes)
+                      </h3>
+                      <div className="space-y-3">
+                        {(() => {
+                          const quotes = (item as TradeIdea).metadata!.quotes;
+                          const categories = Array.from(new Set(quotes.map(q => q.category)));
+
+                          return categories.map(cat => (
+                            <div key={cat} className="space-y-2">
+                              <h4 className="text-[10px] font-bold text-primary uppercase tracking-tighter">{cat}</h4>
+                              {quotes.filter(q => q.category === cat).map((q, i) => (
+                                <p key={i} className="text-sm text-foreground leading-relaxed italic bg-surface-1 p-3 rounded-lg border border-border">
+                                  {q.text}
+                                </p>
+                              ))}
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {!(item as TradeIdea).metadata && (
+                    <div className="grid grid-cols-1 gap-4 bg-surface-2 p-4 rounded-lg border border-border">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <TrendingUp className="w-4 h-4" />
+                          <span className="text-xs uppercase font-medium">Entry Price</span>
+                        </div>
+                        <span className="font-mono text-foreground">${(item as TradeIdea).entry_price}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-red-400">
+                          <Shield className="w-4 h-4" />
+                          <span className="text-xs uppercase font-medium">Stop Loss</span>
+                        </div>
+                        <span className="font-mono text-red-400">${(item as TradeIdea).stop_loss}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-green-400">
+                          <Target className="w-4 h-4" />
+                          <span className="text-xs uppercase font-medium">Take Profit</span>
+                        </div>
+                        <span className="font-mono text-green-400">${(item as TradeIdea).take_profit}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!(item as TradeIdea).metadata && (
+                    <div>
+                      <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
+                        Rationale
+                      </h3>
+                      <p className="text-sm text-foreground leading-relaxed italic bg-surface-1 p-4 rounded-lg border border-border">
+                        "{(item as TradeIdea).rationale}"
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
-              {!isBridgeView && (
-                <div className="grid grid-cols-1 gap-4 bg-surface-2 p-4 rounded-lg border border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <TrendingUp className="w-4 h-4" />
-                      <span className="text-xs uppercase font-medium">Entry Price</span>
-                    </div>
-                    <span className="font-mono text-foreground">${(item as TradeIdea).entry_price}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-red-400">
-                      <Shield className="w-4 h-4" />
-                      <span className="text-xs uppercase font-medium">Stop Loss</span>
-                    </div>
-                    <span className="font-mono text-red-400">${(item as TradeIdea).stop_loss}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-green-400">
-                      <Target className="w-4 h-4" />
-                      <span className="text-xs uppercase font-medium">Take Profit</span>
-                    </div>
-                    <span className="font-mono text-green-400">${(item as TradeIdea).take_profit}</span>
-                  </div>
-                </div>
-              )}
 
-              <div>
-                <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-                  Rationale
-                </h3>
-                <p className="text-sm text-foreground leading-relaxed italic bg-surface-1 p-4 rounded-lg border border-border">
-                  "{(item as TradeIdea).rationale}"
-                </p>
-              </div>
 
-              {!isBridgeView && (
-                <div>
-                  <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-                    Chart Analysis
-                  </h3>
-                  <div className="rounded-lg overflow-hidden border border-border">
-                    <TradingViewWidget symbol={(item as TradeIdea).symbol} />
-                  </div>
-                </div>
-              )}
-
-              <Button
-                onClick={handleAction}
-                disabled={isProcessing}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base shadow-lg shadow-primary/20"
-              >
-                {isProcessing ? (
-                  <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+              <div className="space-y-3">
+                {isBridgeView ? (
+                  <Button
+                    onClick={() => window.location.href = `/analysis/${item.id}?type=trade&context=hyperevm`}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base shadow-lg shadow-primary/20"
+                  >
+                    Look at Bridging Options
+                  </Button>
                 ) : (
-                  isBridgeView ? "Execute Trade" :
-                    isAutomateView ? "Start Bridge" :
-                      "Finalize Trade"
+                  <>
+                    <Button
+                      onClick={() => window.location.href = `/analysis/${item.id}?type=${isTradeIdea ? 'trade' : 'content'}`}
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base shadow-lg shadow-primary/20"
+                    >
+                      Learn More
+                    </Button>
+
+                    {(isFinalizeView || isAutomateView) && (
+                      <Button
+                        onClick={handleAction}
+                        disabled={isProcessing}
+                        variant="ghost"
+                        className="w-full text-muted-foreground hover:text-primary text-xs uppercase tracking-widest h-8"
+                      >
+                        {isProcessing ? (
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          isAutomateView ? "start bridge to hyperevm" :
+                            "trade into the hyperevm network"
+                        )}
+                      </Button>
+                    )}
+                  </>
                 )}
-              </Button>
+              </div>
             </div>
           ) : (
             // Regular Content Detailed View
@@ -233,7 +284,7 @@ export function DetailPanel({ item, onClose, activeView }: DetailPanelProps) {
               </div>
 
               <Button
-                className="w-full mt-4"
+                className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base shadow-lg shadow-primary/20"
                 onClick={() => window.location.href = `/analysis/${item.id}`}
               >
                 Read Entire Source

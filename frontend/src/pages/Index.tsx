@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { ContentFeed } from "@/components/ContentFeed";
 import { DetailPanel } from "@/components/DetailPanel";
@@ -6,19 +7,31 @@ import { ContentItem } from "@/components/ContentCard";
 import { TradeIdea } from "@/components/TradeCard";
 
 const Index = () => {
-  const [activeView, setActiveView] = useState("feed");
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const initialView = queryParams.get("view") || "feed";
+
+  const [activeView, setActiveView] = useState(initialView);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [tradeIdeas, setTradeIdeas] = useState<TradeIdea[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Sync state with URL view parameter if it exists
+    const viewFromUrl = queryParams.get("view");
+    if (viewFromUrl && viewFromUrl !== activeView) {
+      setActiveView(viewFromUrl);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
     setLoading(true);
     setSelectedId(null); // Reset selection when view changes
+    setTradeIdeas([]); // Clear old trades
+    setContent([]); // Clear old content
 
     if (activeView === "automate-trades" || activeView === "preferences") {
-      setContent([]);
-      setTradeIdeas([]);
       setLoading(false);
       return;
     }
