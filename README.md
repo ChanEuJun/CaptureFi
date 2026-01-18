@@ -9,7 +9,7 @@ But **acting** on that alpha is painful.
 3.  By the time you manage your wallet and calculate the hedge, the opportunity is gone.
 
 ## The Solution
-**Thesis** is a "Save-to-Trade" engine. You consume content; we handle the execution.
+**CaptureFi** is a "Save-to-Trade" engine. You consume content; we handle the execution.
 
 1.  **Capture:** Click our browser extension on any tweet or video.
 2.  **Process:** We analyze your captures to generate a "Narrative," and constructs a **Pear Protocol** pair/basket trade (e.g., Long ETH / Short SOL).
