@@ -13,5 +13,5 @@ But **acting** on that alpha is painful.
 
 1.  **Capture:** Click our browser extension on any tweet or video.
 2.  **Process:** We analyze your captures to generate a "Narrative," and constructs a **Pear Protocol** pair/basket trade (e.g., Long ETH / Short SOL).
-3.  **Bridge:** If you lack liquidity, **LI.FI** bridges funds instantly to enable the trade.
+3.  **Bridge:** If you lack liquidity, **LI.FI** provides the user with the most efficient bridge options to HyperEVM.
 4.  **Automate:** While you can manually review and execute the trades, an AI agent managing a **Salt Account** can be automated to read your captures behind the scenes and execute the moment it sees a trend.
