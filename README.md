@@ -48,6 +48,7 @@ We use LI.FI not just as a "bridge page", but as an embedded, context-aware util
 *   Suggests the most efficient options for the user to bridge with and provides a fallback option to ensure the trade is executed.
 *   **Embedded Widget:** We configure the LI.FI widget to pre-fill the **Destination Chain (HyperEVM)** and the **Recipient Address** (The Salt Smart Account), removing user error from the bridging process.
 *   **Fallback Routing:** If HyperEVM direct bridging is congested, we utilize LI.FI's routing to bridge to Optimism (as a proxy L2) where Pear liquidity also exists.
+*   **Bridge to HyperEVM** (via LI.FI) with live route, ETA, progress, and auto-deposit to Hyperliquid for instant trading via pear!
 
 
 ## Running the Project
