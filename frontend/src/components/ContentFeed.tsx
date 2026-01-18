@@ -9,13 +9,13 @@ interface ContentFeedProps {
   onSelect: (id: string) => void;
   onDelete?: (id: string) => void;
   activeView: string;
+  onUpdate?: (id: string, updates: Partial<ContentItem>) => void;
 }
 
-export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView }: ContentFeedProps) {
+export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView, onUpdate }: ContentFeedProps) {
   const viewTitles: Record<string, string> = {
     feed: "library",
-    saved: "saved",
-    later: "read later",
+    urgent: "urgent",
     archive: "archive",
     twitter: "x / twitter",
     youtube: "youtube",
@@ -59,7 +59,7 @@ export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView 
             all
           </button>
           <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
-            later
+            urgent
           </button>
           <button className="text-muted-foreground pb-2 border-b-2 border-transparent hover:text-foreground transition-colors">
             shortlist
@@ -84,6 +84,7 @@ export function ContentFeed({ items, selectedId, onSelect, onDelete, activeView 
               isSelected={selectedId === item.id}
               onClick={() => onSelect(item.id)}
               onDelete={onDelete}
+              onUpdate={onUpdate}
             />
           </motion.div>
         ))}

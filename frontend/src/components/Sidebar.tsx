@@ -20,12 +20,12 @@ import logo from "@/assets/capturefi-logo.png";
 interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
+  onSearch: (query: string) => void;
 }
 
 const navItems = [
   { id: "feed", icon: Home, label: "feed" },
-  { id: "saved", icon: Bookmark, label: "saved" },
-  { id: "later", icon: Clock, label: "later" },
+  { id: "urgent", icon: Clock, label: "urgent" },
   { id: "archive", icon: Archive, label: "archive" },
 ];
 
@@ -35,7 +35,7 @@ const tradingItems = [
   { id: "automate-trades", icon: Wallet, label: "automate trades" },
 ];
 
-export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+export function Sidebar({ activeView, onViewChange, onSearch }: SidebarProps) {
   return (
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
@@ -59,14 +59,14 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
 
       {/* Search */}
       <div className="px-3 mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
-        >
-          <Search className="w-4 h-4" />
-          <span className="hidden lg:block ml-2">search</span>
-        </Button>
+        <div className="relative">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <input
+            placeholder="search"
+            className="w-full bg-sidebar-accent/50 text-sm text-foreground pl-8 pr-3 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/50"
+            onChange={(e) => onSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Main Navigation */}

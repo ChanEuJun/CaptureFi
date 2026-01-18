@@ -38,6 +38,7 @@ interface ContentCardProps {
   isSelected: boolean;
   onClick: () => void;
   onDelete?: (id: string) => void;
+  onUpdate?: (id: string, updates: Partial<ContentItem>) => void;
 }
 
 const sourceIcons = {
@@ -52,7 +53,7 @@ const sourceColors = {
   article: "text-muted-foreground",
 };
 
-export function ContentCard({ item, isSelected, onClick, onDelete }: ContentCardProps) {
+export function ContentCard({ item, isSelected, onClick, onDelete, onUpdate }: ContentCardProps) {
   const SourceIcon = sourceIcons[item.type];
 
   return (
@@ -146,6 +147,26 @@ export function ContentCard({ item, isSelected, onClick, onDelete }: ContentCard
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover border-border">
+              <DropdownMenuItem
+                className="cursor-pointer flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate?.(item.id, { tags: item.tags.includes("urgent") ? item.tags.filter(t => t !== "urgent") : [...item.tags, "urgent"] });
+                }}
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>mark urgent</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate?.(item.id, { tags: item.tags.includes("archive") ? item.tags.filter(t => t !== "archive") : [...item.tags, "archive"] });
+                }}
+              >
+                <Clock className="w-4 h-4" />
+                <span>{item.tags.includes("archive") ? "unarchive" : "archive"}</span>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive cursor-pointer flex items-center gap-2"
                 onClick={(e) => {

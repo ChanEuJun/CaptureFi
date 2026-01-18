@@ -18,6 +18,11 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/analysis/:id" element={<FullAnalysis />} />
+          {/* LI.FI Widget Routes */}
+          <Route path="/from-token" element={<Index />} />
+          <Route path="/to-token" element={<Index />} />
+          <Route path="/settings" element={<Index />} />
+          <Route path="/transaction-history" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
