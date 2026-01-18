@@ -45,33 +45,10 @@ We use Salt to solve the "AI Trust Problem" in finance. We want an AI to trade f
 We use LI.FI not just as a "bridge page", but as an embedded, context-aware utility.
 
 **Key Implementation Details:**
-*   **Smart Deficit Calculation:** The app doesn't just show a bridge. It calculates the *exact* amount needed for the trade (`src/components/integration/LiFiBridge.tsx`).
-    *   *Logic:* `Required Collateral ($200) - Current HyperEVM Balance ($50) = Bridge Amount ($150)`.
+*   Suggests the most efficient options for the user to bridge with and provides a fallback option to ensure the trade is executed.
 *   **Embedded Widget:** We configure the LI.FI widget to pre-fill the **Destination Chain (HyperEVM)** and the **Recipient Address** (The Salt Smart Account), removing user error from the bridging process.
 *   **Fallback Routing:** If HyperEVM direct bridging is congested, we utilize LI.FI's routing to bridge to Optimism (as a proxy L2) where Pear liquidity also exists.
 
----
-
-## How it Works (Architecture)
-
-```mermaid
-graph TD
-    User[User Consuming Content] -->|Click Extension| Capture[Capture Service]
-    Capture -->|Extract Text| AI[Gemini AI Engine]
-    AI -->|Analyze Sentiment| Strategy[Trade Strategy JSON]
-    
-    Strategy -->|1. Check Balance| Wallet{Has Funds on HyperEVM?}
-    Wallet -- No --> LiFi[LI.FI Bridge Widget]
-    Wallet -- Yes --> Exec[Execution Engine]
-    
-    LiFi -->|Funds Arrive| SaltVault[Salt Smart Account]
-    
-    Exec -->|2. Verify Policy| SaltPolicy{Salt Policy Check}
-    SaltPolicy -- Allowed --> Pear[Pear Protocol Router]
-    SaltPolicy -- Blocked --> Reject[Revert Transaction]
-    
-    Pear -->|3. Execute Trade| Market[Hyperliquid / Dexterity]
-```
 
 ## Running the Project
 
