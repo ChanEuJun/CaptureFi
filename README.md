@@ -1,6 +1,6 @@
 # CaptureFi: The "Save-to-Trade" Engine
 
-**Tagline:** Turn Content into Capital. The Readwise for Narrative Trading.
+Presentation on the Product: https://www.canva.com/design/DAG-wmuUo4g/L-jyUfSjMY3WZIchvaGjPw/edit?utm_content=DAG-wmuUo4g&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
 
 ## The Problem
 Crypto alpha lives in the noise—on X (Twitter), YouTube, Telegram, scattered articles across the internet. But **acting** on that alpha is painful:
